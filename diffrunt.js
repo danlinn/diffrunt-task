@@ -4,36 +4,63 @@ module.exports = function(grunt) {
   grunt.initConfig({
     // Task configuration.
     exec: {
+      config: {
+        report: "yes",
+        coder: "yes"
+      },
       diff: {
         command: function() {
-          var email = this.option('e') || 'your@address.com'; // Email flag
-          var url = this.option('u') || 'diffux.yourserver.com'; // Diffux server URL flag
-          var pid = this.option('p') || '1'; // Diffux project ID flag
-          var title = this.option('t') || 'DC Diffux report'; // Title flag
-          var delay = this.option('d') || '2'; // Delay is seconds flag
-          out = "curl  --header \"Accept: application/json\"";
-          out += "--header \"Content-Type: application/json\" --data '{\"title\":\"";
-          out += title + "\", \"description\": \"Diffux report\",\"delay_seconds\":";
-          out += delay;
-          if (email !== '') {
-            out += ",\"email\": \"" + email + "\"";
+          if(this.config('exec.config.report') === "yes") {
+            var email = this.option('e') || 'your@email.com';
+            var url = this.option('u') || 'http://url.to.diffux/';
+            var pid = this.option('p') || ''; // Diffux Project ID
+            var title = this.option('t') || 'Diffux report';
+            var delay = this.option('d') || '5';
+            out = "curl  --header \"Accept: application/json\"";
+            out += " --header \"Content-Type: application/json\" --data '{\"title\":\"";
+            out += title + "\", \"description\": \"Diffux report\",\"delay_seconds\":";
+            out += delay;
+            if (email !== '') {
+              out += ",\"email\": \"" + email + "\"";
+            }
+            out += "}' " + url + "/en/projects/" + pid + "/sweeps/trigger";
+            return  out;
+          } else {
+            return "echo";
           }
-          out += "}' " + url + "/en/projects/" + pid + "/sweeps/trigger";
-          return  out;
         },
         callback: function showURL(err, stdout, stderr) {
           if(typeof stderr !== 'undefined' && stderr !== "") {
             console.log("\n\nThere was an error: " + stderr + "\n");
+          } else if(stdout === "\n") {
+            console.log("no report generated");
+          } else {
+            data = JSON.parse(stdout);
+            console.log("\n\nYou can View your Diffux report here:\n" + data.url + "\n");
           }
-          data = JSON.parse(stdout);
-          console.log("\n\nYou can View your Diffux report here:\n" + data.url + "\n");
         },
         stdout: false,
       },
+      prompt: {
+        reports: {
+          options: {
+            questions: [
+              {
+                config: 'exec.config.report',
+                type: 'boolean',
+                message: 'Would you like a Diffux report?',
+                default: 'no',
+                choices: ['yes', 'no'],
+              }
+            ]
+          }
+        }
+      }
     }
   });
 
+  grunt.loadNpmTasks('grunt-prompt');
   grunt.loadNpmTasks('grunt-exec');
 
-  grunt.registerTask('drupal', ['exec:coder']);
+  grunt.registerTask('report', ['prompt:reports','exec:diff']);
 };
